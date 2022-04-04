@@ -1,15 +1,20 @@
 import json
 import csv  
+import sys
+from datetime import datetime
 
-header = ['Layers', 'PadToPad', 'PadToTrack', 'TrackToTrack','MinLineWidth']
+header = ['Layers', 'PadToPad', 'PadToTrack', 'TrackToTrack','MinLineWidth','TrackToRegion']
 MaterialStackup = ['Type','Name','Thickness (mm)','Material','Color','DielectricConstant']
 header2=['DesignRules']
 header3=['MaterialStackup']
 header4=['GeneralSpecs']
 header5=['Dimentions']
-header6=['LayerNumber','BoardThickness','Finish','ImpedanceControlled']
+header6=['LayerNumber','BoardThickness','Finish','ImpedanceControlled','Castellated']
 
-fj = open('ethernet_audio-job.gbrjob')
+gbrjob = sys.argv[1]
+print(gbrjob)
+
+fj = open(gbrjob)
 # returns JSON object as
 # a dictionary
 data = json.load(fj)
@@ -17,25 +22,44 @@ data = json.load(fj)
 # Iterating through the json
 # list
 
-name = [data["GeneralSpecs"]["ProjectId"]["Name"]]
-GUID = [data["GeneralSpecs"]["ProjectId"]["GUID"]]
-Revision = [data["GeneralSpecs"]["ProjectId"]["Revision"]]
+name = ["Name",data["GeneralSpecs"]["ProjectId"]["Name"]]
+GUID = ["GUID",data["GeneralSpecs"]["ProjectId"]["GUID"]]
+Revision = ["Rev",data["GeneralSpecs"]["ProjectId"]["Revision"]]
+
+date_time_str= data["Header"]["CreationDate"]
+time_formated= datetime.strptime(date_time_str, '%Y-%m-%dT%H:%M:%S%z')
+time_reformated = str(time_formated.day)+"/"+str(time_formated.month)+"/"+str(time_formated.year)
+
+print(time_reformated)
+
+Date = ["Date",time_reformated]
+
+
 Dimention = [data["GeneralSpecs"]["Size"]["X"],data["GeneralSpecs"]["Size"]["Y"]]
 ci = False
+cas = False
 try:
 	if data["GeneralSpecs"]["ImpedanceControlled"]:
 		ci=True
 except Exception as e:
 	print(e)
 
+try:
+    if data["GeneralSpecs"]["Castellated"]:
+        cas=True
+except Exception as e:
+    print(e)
 
-GeneralSpecs= [data["GeneralSpecs"]["LayerNumber"],data["GeneralSpecs"]["BoardThickness"],data["GeneralSpecs"]["Finish"],ci]
+
+
+GeneralSpecs= [data["GeneralSpecs"]["LayerNumber"],data["GeneralSpecs"]["BoardThickness"],data["GeneralSpecs"]["Finish"],ci,cas]
 
 
 with open('config_electrical.csv', 'w', encoding='UTF8') as f:
     writer = csv.writer(f)
 
     writer.writerow(name)
+    writer.writerow(Date)
     writer.writerow(GUID)
     writer.writerow(Revision)
     writer.writerow('')
@@ -57,6 +81,11 @@ with open('config_electrical.csv', 'w', encoding='UTF8') as f:
         	dataForm.append(i['MinLineWidth'])
         else:
         	dataForm.append('-')
+        if 'TrackToRegion' in i:
+            dataForm.append(i['TrackToRegion'])
+        else:
+            dataForm.append('-')
+
         writer.writerow(dataForm)
         dataForm.clear()
     writer.writerow('')
